@@ -199,7 +199,6 @@ def build_card(mu, by_design, by_part, date_filter=None):
 MARKET_TITLES = [
     ("moneyline", "Moneyline"),
     ("method_of_victory", "Method of Victory"),
-    ("method_of_finish", "Method of Finish"),
     ("go_the_distance", "Go the Distance"),
     ("round_of_finish", "Round of Finish"),
 ]
