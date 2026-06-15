@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.gregehrenberg.ufc-pinnacle-odds</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>/Users/gregehrenberg/UFC/run.sh</string>
+  </array>
+
+  <!-- Run every 30 minutes; also fires once at load. Captures line moves on
+       fight night and auto-rolls to the next card after the current one ends. -->
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/gregehrenberg/UFC/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/gregehrenberg/UFC/logs/launchd.err.log</string>
+</dict>
+</plist>
