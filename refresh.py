@@ -25,7 +25,7 @@ Usage:
     python3 refresh.py --date 2026-06-15   # force a specific card date (UTC)
 """
 from __future__ import annotations
-import argparse, html, json, os, re, sys, time
+import argparse, html, json, os, re, sys, time, unicodedata
 from collections import defaultdict
 import requests
 
@@ -83,6 +83,106 @@ def yes_no_ids(part_list):
 
 # Method strings as they appear in Pinnacle descriptions -> canonical label.
 METHODS = [("TKO/KO", "KO/TKO"), ("Submission", "Submission"), ("Decision", "Decision")]
+
+
+# ============================================================== KALSHI =========
+# Kalshi has UFC moneyline only (KXUFCFIGHT, one event per fight, 2 markets).
+# Prices live in the order book, not the summary bid/ask.
+KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
+_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+
+def _kget(path, tries=6):
+    """GET Kalshi JSON with backoff on rate-limit (429) — bursts get throttled."""
+    delay = 0.4
+    for _ in range(tries):
+        try:
+            r = requests.get(KALSHI + path, headers={"User-Agent": "Mozilla/5.0"}, timeout=25)
+            if r.status_code == 429:
+                time.sleep(delay); delay *= 2; continue
+            return r.json()
+        except Exception:
+            time.sleep(delay); delay *= 2
+    return {}
+
+
+def norm_fighter(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
+    return re.sub(r"[^a-z]", "", s)
+
+
+_NAME_NOISE = {"de", "da", "do", "dos", "del", "la", "le", "van", "von", "jr", "sr", "bra"}
+
+
+def fighter_tokens(name: str):
+    """Meaningful name tokens (deaccented, lowercased), dropping connectors/country tags."""
+    s = unicodedata.normalize("NFKD", name or "")
+    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
+    return [t for t in re.findall(r"[a-z]+", s) if t not in _NAME_NOISE and len(t) >= 2]
+
+
+def fighter_match(a, b) -> bool:
+    """Fuzzy match two fighter names (token lists): handles nicknames, country tags,
+    and extra surnames. Match if they share >=2 tokens, or same surname + first initial."""
+    sa, sb = set(a), set(b)
+    if len(sa & sb) >= 2:
+        return True
+    return bool(a and b and a[-1] == b[-1] and a[0][:1] == b[0][:1])
+
+
+def card_date_code(card_date: str) -> str:
+    """'2026-06-20' -> '26JUN20' (Kalshi event-ticker date code)."""
+    y, m, dd = card_date.split("-")
+    return f"{y[2:]}{_MONTHS[int(m) - 1]}{dd}"
+
+
+def kalshi_mid(ticker: str):
+    """Kalshi YES implied prob from the order book (mid of best bid / derived ask)."""
+    ob = _kget(f"/markets/{ticker}/orderbook").get("orderbook_fp") or {}
+    yes, no = ob.get("yes_dollars") or [], ob.get("no_dollars") or []
+    ybid = max((float(p) for p, _ in yes), default=None)
+    yask = (1.0 - max(float(p) for p, _ in no)) if no else None
+    if ybid is not None and yask is not None:
+        return (ybid + yask) / 2.0
+    return ybid if ybid is not None else yask
+
+
+def fetch_kalshi_ufc(card_date: str):
+    """Return [{fighters: {norm_name:(display,ticker)}, url}] for the card's KXUFCFIGHT
+    events. Discovery only (events + markets calls) — no order-book calls here, so price
+    throttling can't drop a match."""
+    code = card_date_code(card_date)
+    evs = _kget("/events?series_ticker=KXUFCFIGHT&status=open&limit=100").get("events", [])
+    out = []
+    for e in evs:
+        et = e["event_ticker"]
+        if code not in et:
+            continue
+        mk = _kget(f"/markets?event_ticker={et}&limit=10").get("markets", [])
+        fighters = {}
+        for m in mk:
+            sub = m.get("yes_sub_title")
+            if sub:
+                fighters[norm_fighter(sub)] = (sub, m["ticker"])
+        if fighters:
+            out.append({"fighters": fighters, "url": f"https://kalshi.com/markets/kxufcfight/{et.lower()}"})
+    return out
+
+
+def attach_kalshi(fights, card_date):
+    """Match each fight to its Kalshi event (fuzzy fighter names), then price the matched markets."""
+    kev = fetch_kalshi_ufc(card_date)
+    for f in fights:
+        ht, at = fighter_tokens(f["home"]), fighter_tokens(f["away"])
+        for e in kev:
+            cand = [(fighter_tokens(disp), tkr) for disp, tkr in e["fighters"].values()]
+            hm = next((c for c in cand if fighter_match(ht, c[0])), None)
+            am = next((c for c in cand if fighter_match(at, c[0])), None)
+            if hm and am and hm[1] != am[1]:
+                f["kalshi"] = {f["home"]: kalshi_mid(hm[1]), f["away"]: kalshi_mid(am[1])}
+                f["kalshi_url"] = e["url"]
+                break
 
 
 def build_card(mu, by_design, by_part, date_filter=None):
@@ -218,12 +318,32 @@ def render(card_date, fights, fetched):
             if not mk:
                 continue
             rows = sorted(mk.items(), key=lambda kv: -kv[1])
-            body = "".join(
-                f'<tr><td>{esc(str(k))}</td><td class="p">{pct(v)}</td>'
-                f'<td class="bar"><span style="width:{max(1, v*100):.1f}%"></span></td></tr>'
-                for k, v in rows)
-            tbls.append(f'<div class="mkt"><h3>{esc(title)}</h3>'
-                        f'<table><tbody>{body}</tbody></table></div>')
+            kal = f.get("kalshi") if key == "moneyline" else None
+            if kal:
+                # Moneyline with Kalshi comparison: Fair / Kalshi / Edge
+                body = ""
+                for k, v in rows:
+                    kv = kal.get(k)
+                    if kv is not None:
+                        edge = v - kv
+                        ecls = "pos" if edge > 0 else ("neg" if edge < 0 else "")
+                        kcell, ecell = pct(kv), f'<td class="e {ecls}">{edge*100:+.1f}</td>'
+                    else:
+                        kcell, ecell = "—", '<td class="e"></td>'
+                    body += (f'<tr><td>{esc(str(k))}</td><td class="p">{pct(v)}</td>'
+                             f'<td class="k">{kcell}</td>{ecell}</tr>')
+                ttl = (f'<a href="{esc(f["kalshi_url"])}" target="_blank" rel="noopener">{esc(title)} ↗</a>'
+                       if f.get("kalshi_url") else esc(title))
+                tbls.append(f'<div class="mkt"><h3>{ttl}</h3><table>'
+                            f'<thead><tr><th></th><th>Fair</th><th>Kalshi</th><th>Edge</th></tr></thead>'
+                            f'<tbody>{body}</tbody></table></div>')
+            else:
+                body = "".join(
+                    f'<tr><td>{esc(str(k))}</td><td class="p">{pct(v)}</td>'
+                    f'<td class="bar"><span style="width:{max(1, v*100):.1f}%"></span></td></tr>'
+                    for k, v in rows)
+                tbls.append(f'<div class="mkt"><h3>{esc(title)}</h3>'
+                            f'<table><tbody>{body}</tbody></table></div>')
         st = (f.get("start") or "").replace("T", " ").replace("Z", " UTC")
         cards.append(
             f'<section class="fight"><header><h2>{esc(f["away"])} '
@@ -257,14 +377,20 @@ def render(card_date, fights, fetched):
   td.p{{text-align:right;font-variant-numeric:tabular-nums;width:58px;padding-right:10px}}
   td.bar{{width:34%}}
   td.bar span{{display:block;height:7px;border-radius:4px;background:var(--accent);opacity:.85}}
+  th{{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);text-align:right;font-weight:600;padding:0 10px 4px 0}}
+  th:first-child{{text-align:left}}
+  td.k{{text-align:right;font-variant-numeric:tabular-nums;width:58px;padding-right:10px;color:var(--mut)}}
+  td.e{{text-align:right;font-variant-numeric:tabular-nums;width:50px;font-weight:600}}
+  td.e.pos{{color:#3fb950}} td.e.neg{{color:#f85149}}
+  .mkt h3 a{{color:var(--mut);text-decoration:none}} .mkt h3 a:hover{{color:#58a6ff;text-decoration:underline}}
   footer{{color:var(--mut);font-size:12px;margin-top:30px;text-align:center}}
   a{{color:#58a6ff}}
 </style></head>
 <body><div class="wrap">
 <h1>UFC — Pinnacle De-vigged Fair Odds</h1>
 <p class="sub">Card date <b>{esc(card_date or "?")}</b> (UTC) · {len(fights)} fights ·
-   source <b>Pinnacle</b> · de-vigged · fetched <b>{esc(fetched)}</b><br>
-   Round of <i>victory</i> omitted (not priced by Pinnacle). Round of <i>finish</i> = which round it ends, either fighter.</p>
+   <b>Fair</b> = Pinnacle de-vigged · <b>Kalshi</b> = live order-book mid · <b>Edge</b> = Fair − Kalshi (pts) · fetched <b>{esc(fetched)}</b><br>
+   Kalshi has moneyline only (click <i>Moneyline ↗</i> for the market). Round of <i>victory</i> omitted (not priced by Pinnacle); Round of <i>finish</i> = which round it ends, either fighter.</p>
 {"".join(cards)}
 <footer>Probabilities are vig-removed and normalized within each market. Built from Pinnacle guest API league {LEAGUE}.</footer>
 </div></body></html>"""
@@ -279,7 +405,10 @@ if __name__ == "__main__":
     print("Fetching Pinnacle UFC matchups + prices ...")
     mu, by_design, by_part = fetch()
     card_date, fights = build_card(mu, by_design, by_part, args.date)
-    print(f"Card {card_date}: {len(fights)} fights")
+    print("Fetching Kalshi UFC moneylines ...")
+    attach_kalshi(fights, card_date)
+    n_k = sum(1 for f in fights if f.get("kalshi"))
+    print(f"Card {card_date}: {len(fights)} fights | {n_k} matched to Kalshi")
     for f in fights:
         got = ", ".join(k for k, _ in MARKET_TITLES if k in f["markets"])
         print(f"  {f['away']} vs {f['home']:30s} [{got}]")
