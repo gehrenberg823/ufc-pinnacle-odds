@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 import argparse, html, json, os, re, sys, time, unicodedata
 from collections import defaultdict
+from datetime import datetime
 import requests
 
 KEY = "CmX2KcMrXuFmNg6YFbmTxE0y9CIrOi0R"          # Pinnacle public guest x-api-key
@@ -308,6 +309,17 @@ def pct(v):
     return f"{v * 100:.1f}%"
 
 
+def fmt_start(s):
+    """ISO start time -> readable local 12-hour time, e.g. 'Sat Jun 20 · 4:00 PM CDT'."""
+    if not s:
+        return ""
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone().strftime(
+            "%a %b %-d · %-I:%M %p %Z")
+    except Exception:
+        return s[:16].replace("T", " ")
+
+
 def render(card_date, fights, fetched):
     esc = html.escape
     cards = []
@@ -344,7 +356,7 @@ def render(card_date, fights, fetched):
                     for k, v in rows)
                 tbls.append(f'<div class="mkt"><h3>{esc(title)}</h3>'
                             f'<table><tbody>{body}</tbody></table></div>')
-        st = (f.get("start") or "").replace("T", " ").replace("Z", " UTC")
+        st = fmt_start(f.get("start"))
         cards.append(
             f'<section class="fight"><header><h2>{esc(f["away"])} '
             f'<span class="vs">vs</span> {esc(f["home"])}</h2>'
@@ -412,7 +424,7 @@ if __name__ == "__main__":
     for f in fights:
         got = ", ".join(k for k, _ in MARKET_TITLES if k in f["markets"])
         print(f"  {f['away']} vs {f['home']:30s} [{got}]")
-    fetched = time.strftime("%Y-%m-%d %H:%M %Z")
+    fetched = datetime.now().astimezone().strftime("%b %-d, %Y · %-I:%M %p %Z")
     open(OUT, "w", encoding="utf-8").write(render(card_date, fights, fetched))
     print(f"\nWrote {OUT}")
     if args.json:
