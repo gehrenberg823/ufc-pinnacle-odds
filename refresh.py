@@ -27,7 +27,7 @@ Usage:
 from __future__ import annotations
 import argparse, html, json, os, re, sys, time, unicodedata
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 
 KEY = "CmX2KcMrXuFmNg6YFbmTxE0y9CIrOi0R"          # Pinnacle public guest x-api-key
@@ -198,10 +198,29 @@ def build_card(mu, by_design, by_part, date_filter=None):
         if m.get("type") == "matchup" and len(m.get("participants", [])) == 2:
             fights.append(m)
 
-    # pick the card: soonest date that has fights, unless overridden
-    dates = sorted({(m.get("startTime") or "")[:10] for m in fights if m.get("startTime")})
-    card_date = date_filter or (dates[0] if dates else None)
-    fights = [m for m in fights if (m.get("startTime") or "").startswith(card_date or "")]
+    # pick the card. A UFC card runs ~5-6h continuously but can cross midnight UTC,
+    # so a single card may span two UTC calendar dates. Cluster by time gaps instead
+    # of by date: the soonest card = the earliest fight + all contiguous fights with
+    # <12h gaps (the next card is days/weeks later).
+    def _parse(m):
+        return datetime.fromisoformat(m["startTime"].replace("Z", "+00:00"))
+
+    fights = sorted((m for m in fights if m.get("startTime")), key=lambda m: m["startTime"])
+    if date_filter:
+        fights = [m for m in fights if m["startTime"].startswith(date_filter)]
+        card_date = date_filter
+    elif fights:
+        card = [fights[0]]
+        for m in fights[1:]:
+            if _parse(m) - _parse(card[-1]) <= timedelta(hours=12):
+                card.append(m)
+            else:
+                break
+        fights = card
+        # label the card by the local date of its earliest fight (US card date)
+        card_date = _parse(fights[0]).astimezone().strftime("%Y-%m-%d")
+    else:
+        card_date = None
     # main event last in startTime -> show latest first
     fights.sort(key=lambda m: m.get("startTime", ""), reverse=True)
 
@@ -400,7 +419,7 @@ def render(card_date, fights, fetched):
 </style></head>
 <body><div class="wrap">
 <h1>UFC — Pinnacle De-vigged Fair Odds</h1>
-<p class="sub">Card date <b>{esc(card_date or "?")}</b> (UTC) · {len(fights)} fights ·
+<p class="sub">Card date <b>{esc(card_date or "?")}</b> · {len(fights)} fights ·
    <b>Fair</b> = Pinnacle de-vigged · <b>Kalshi</b> = live order-book mid · <b>Edge</b> = Fair − Kalshi (pts) · fetched <b>{esc(fetched)}</b><br>
    Kalshi has moneyline only (click <i>Moneyline ↗</i> for the market). Round of <i>victory</i> omitted (not priced by Pinnacle); Round of <i>finish</i> = which round it ends, either fighter.</p>
 {"".join(cards)}
