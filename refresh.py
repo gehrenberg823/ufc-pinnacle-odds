@@ -171,15 +171,27 @@ def fetch_kalshi_ufc(card_date: str):
     return out
 
 
+def _match_side(toks, cand):
+    """Pick the Kalshi fighter for one Pinnacle fighter. Falls back to a
+    unique-surname match for ring-name diffs (Kalshi 'Bobby Green' vs
+    Pinnacle 'King Green') — safe inside a two-fighter event."""
+    hit = next((c for c in cand if fighter_match(toks, c[0])), None)
+    if hit:
+        return hit
+    sn = toks[-1] if toks else ""
+    hits = [c for c in cand if c[0] and c[0][-1] == sn]
+    return hits[0] if len(hits) == 1 else None
+
+
 def attach_kalshi(fights, card_date):
-    """Match each fight to its Kalshi event (fuzzy fighter names), then price the matched markets."""
+    """Match each fight to its Kalshi event (fuzzy fighter names, then unique
+    surname), then price the matched markets."""
     kev = fetch_kalshi_ufc(card_date)
     for f in fights:
         ht, at = fighter_tokens(f["home"]), fighter_tokens(f["away"])
         for e in kev:
             cand = [(fighter_tokens(disp), tkr) for disp, tkr in e["fighters"].values()]
-            hm = next((c for c in cand if fighter_match(ht, c[0])), None)
-            am = next((c for c in cand if fighter_match(at, c[0])), None)
+            hm, am = _match_side(ht, cand), _match_side(at, cand)
             if hm and am and hm[1] != am[1]:
                 f["kalshi"] = {f["home"]: kalshi_mid(hm[1]), f["away"]: kalshi_mid(am[1])}
                 f["kalshi_url"] = e["url"]
@@ -341,8 +353,8 @@ def fmt_start(s):
 
 def render(card_date, fights, fetched):
     esc = html.escape
-    cards = []
-    for f in fights:
+    cards, chips = [], []
+    for i, f in enumerate(fights, 1):
         tbls = []
         for key, title in MARKET_TITLES:
             mk = f["markets"].get(key)
@@ -356,14 +368,15 @@ def render(card_date, fights, fetched):
                 for k, v in rows:
                     kv = kal.get(k)
                     if kv is not None:
-                        edge = v - kv
+                        edge = (v - kv) * 100
                         ecls = "pos" if edge > 0 else ("neg" if edge < 0 else "")
-                        kcell, ecell = pct(kv), f'<td class="e {ecls}">{edge*100:+.1f}</td>'
+                        kcell = pct(kv)
+                        ecell = f'<td class="e"><span class="epill {ecls}">{edge:+.1f}</span></td>'
                     else:
                         kcell, ecell = "—", '<td class="e"></td>'
                     body += (f'<tr><td>{esc(str(k))}</td><td class="p">{pct(v)}</td>'
                              f'<td class="k">{kcell}</td>{ecell}</tr>')
-                ttl = (f'<a href="{esc(f["kalshi_url"])}" target="_blank" rel="noopener">{esc(title)} ↗</a>'
+                ttl = (f'<a href="{esc(f["kalshi_url"])}" target="_blank" rel="noopener">{esc(title)} &#8599;</a>'
                        if f.get("kalshi_url") else esc(title))
                 tbls.append(f'<div class="mkt"><h3>{ttl}</h3><table>'
                             f'<thead><tr><th></th><th>Fair</th><th>Kalshi</th><th>Edge</th></tr></thead>'
@@ -373,57 +386,103 @@ def render(card_date, fights, fetched):
                     f'<tr><td>{esc(str(k))}</td><td class="p">{pct(v)}</td>'
                     f'<td class="bar"><span style="width:{max(1, v*100):.1f}%"></span></td></tr>'
                     for k, v in rows)
-                tbls.append(f'<div class="mkt"><h3>{esc(title)}</h3>'
+                nok = ('<span class="nok">no Kalshi market</span>'
+                       if key == "moneyline" else '')
+                tbls.append(f'<div class="mkt"><h3>{esc(title)} {nok}</h3>'
                             f'<table><tbody>{body}</tbody></table></div>')
         st = fmt_start(f.get("start"))
+        chips.append(f'<a class="chip" href="#f{i}">{esc(f["away"])} vs {esc(f["home"])}</a>')
         cards.append(
-            f'<section class="fight"><header><h2>{esc(f["away"])} '
-            f'<span class="vs">vs</span> {esc(f["home"])}</h2>'
+            f'<section class="fight" id="f{i}"><header>'
+            f'<h2>{esc(f["away"])} <span class="vs">vs</span> {esc(f["home"])}</h2>'
             f'<span class="time">{esc(st)}</span></header>'
             f'<div class="mkts">{"".join(tbls)}</div></section>')
 
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UFC — Pinnacle De-vigged Fair Odds</title>
+<title>UFC Fair Odds</title>
 <style>
-  :root{{--bg:#0d1117;--card:#161b22;--line:#21262d;--txt:#e6edf3;--mut:#8b949e;--accent:#d20a0a}}
+  :root{{--bg:#0b0e14;--card:#12161f;--card2:#171c27;--line:#232a38;--txt:#dfe6f0;
+    --mut:#7d8794;--blue:#4d9fff;--green:#2ea45f;--greenT:#3fb950;--red:#f85149}}
   *{{box-sizing:border-box}}
-  body{{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}}
-  .wrap{{max-width:1180px;margin:0 auto;padding:28px 20px 60px}}
-  h1{{font-size:26px;margin:0 0 4px}}
-  .sub{{color:var(--mut);margin:0 0 26px;font-size:13px}}
-  .sub b{{color:var(--txt)}}
-  .fight{{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 22px;overflow:hidden}}
+  body{{margin:0;background:var(--bg);color:var(--txt);
+    font:14px/1.45 -apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif}}
+  .num{{font-variant-numeric:tabular-nums}}
+
+  /* sticky header (navslot/rbslot are filled by the local server only) */
+  .tophdr{{position:sticky;top:0;z-index:50;background:rgba(11,14,20,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}}
+  .hrow{{display:flex;align-items:center;gap:18px;padding:12px 22px;max-width:1180px;margin:0 auto}}
+  .brand{{font-size:15px;font-weight:700;white-space:nowrap}}
+  .brand small{{color:var(--mut);font-weight:500;margin-left:8px}}
+  .tabs{{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
+    border-radius:8px;padding:2px}}
+  .tabs a{{color:var(--mut);text-decoration:none;padding:5px 14px;border-radius:6px;font-size:12.5px}}
+  .tabs a.on{{color:var(--txt);background:var(--card2);font-weight:600}}
+  .spacer{{flex:1}}
+  .stamp{{color:var(--mut);font-size:11.5px;text-align:right;line-height:1.5}}
+  button.ghost{{background:var(--card);border:1px solid var(--line);color:var(--txt);
+    border-radius:7px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:500}}
+  button.ghost:hover{{filter:brightness(1.2)}} button.ghost:disabled{{opacity:.6;cursor:default}}
+
+  .wrap{{max-width:1180px;margin:0 auto;padding:18px 22px 60px}}
+  .chips{{display:flex;gap:8px;overflow-x:auto;padding:2px 0 14px;scrollbar-width:thin}}
+  .chip{{white-space:nowrap;color:var(--txt);text-decoration:none;font-size:12.5px;
+    padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line)}}
+  .chip:hover{{border-color:var(--blue)}}
+
+  .fight{{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    margin:0 0 14px;overflow:hidden}}
   .fight>header{{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-    padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}}
-  .fight h2{{font-size:18px;margin:0}}
-  .vs{{color:var(--mut);font-weight:400;font-size:13px;padding:0 4px}}
-  .time{{color:var(--mut);font-size:12px;white-space:nowrap}}
-  .mkts{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0}}
-  .mkt{{padding:14px 18px;border-top:1px solid var(--line);border-right:1px solid var(--line)}}
-  .mkt h3{{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 8px}}
+    padding:13px 18px;flex-wrap:wrap}}
+  .fight h2{{font-size:15px;font-weight:650;margin:0}}
+  .vs{{color:var(--mut);font-weight:400;font-size:12px;padding:0 4px}}
+  .time{{color:var(--mut);font-size:11.5px;white-space:nowrap}}
+  .mkts{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;
+    padding:0 18px 16px}}
+  .mkt{{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}}
+  .mkt h3{{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);
+    font-weight:650;margin:0 0 8px}}
+  .mkt h3 a{{color:var(--blue);text-decoration:none}} .mkt h3 a:hover{{text-decoration:underline}}
+  .nok{{color:var(--mut);font-weight:500;text-transform:none;letter-spacing:0;margin-left:6px}}
   table{{width:100%;border-collapse:collapse}}
-  td{{padding:3px 0;vertical-align:middle;font-size:13.5px}}
-  td.p{{text-align:right;font-variant-numeric:tabular-nums;width:58px;padding-right:10px}}
-  td.bar{{width:34%}}
-  td.bar span{{display:block;height:7px;border-radius:4px;background:var(--accent);opacity:.85}}
-  th{{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);text-align:right;font-weight:600;padding:0 10px 4px 0}}
+  td{{padding:4px 0;vertical-align:middle;font-size:13px;border-bottom:1px solid #1b2130}}
+  tr:last-child td{{border-bottom:0}}
+  td.p{{text-align:right;font-variant-numeric:tabular-nums;width:56px;padding-right:12px}}
+  td.bar{{width:38%}}
+  td.bar span{{display:block;height:6px;border-radius:3px;
+    background:linear-gradient(90deg,#2b6cb0,var(--blue))}}
+  th{{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);
+    text-align:right;font-weight:500;padding:0 12px 5px 0;border-bottom:1px solid var(--line)}}
   th:first-child{{text-align:left}}
-  td.k{{text-align:right;font-variant-numeric:tabular-nums;width:58px;padding-right:10px;color:var(--mut)}}
-  td.e{{text-align:right;font-variant-numeric:tabular-nums;width:50px;font-weight:600}}
-  td.e.pos{{color:#3fb950}} td.e.neg{{color:#f85149}}
-  .mkt h3 a{{color:var(--mut);text-decoration:none}} .mkt h3 a:hover{{color:#58a6ff;text-decoration:underline}}
-  footer{{color:var(--mut);font-size:12px;margin-top:30px;text-align:center}}
-  a{{color:#58a6ff}}
+  td.k{{text-align:right;font-variant-numeric:tabular-nums;width:56px;padding-right:12px;color:var(--mut)}}
+  td.e{{text-align:right;width:58px}}
+  .epill{{display:inline-block;min-width:44px;text-align:center;font-size:11px;font-weight:700;
+    padding:2px 7px;border-radius:999px;font-variant-numeric:tabular-nums;
+    background:#1b2130;color:var(--mut)}}
+  .epill.pos{{background:#12351f;color:var(--greenT)}}
+  .epill.neg{{background:#3a1513;color:var(--red)}}
+  .legend{{color:var(--mut);font-size:11.5px;margin-top:18px;line-height:1.6}}
+  .legend b{{color:var(--txt)}}
+  a{{color:var(--blue)}}
 </style></head>
-<body><div class="wrap">
-<h1>UFC — Pinnacle De-vigged Fair Odds</h1>
-<p class="sub">Card date <b>{esc(card_date or "?")}</b> · {len(fights)} fights ·
-   <b>Fair</b> = Pinnacle de-vigged · <b>Kalshi</b> = live order-book mid · <b>Edge</b> = Fair − Kalshi (pts) · fetched <b>{esc(fetched)}</b><br>
-   Kalshi has moneyline only (click <i>Moneyline ↗</i> for the market). Round of <i>victory</i> omitted (not priced by Pinnacle); Round of <i>finish</i> = which round it ends, either fighter.</p>
+<body>
+<div class="tophdr"><div class="hrow">
+  <span class="brand">UFC Fair Odds<small>{esc(card_date or "?")} · {len(fights)} fights</small></span>
+  <span id="navslot"></span>
+  <span class="spacer"></span>
+  <span class="stamp">Pinnacle de-vigged · fetched {esc(fetched)}</span>
+  <span id="rbslot"></span>
+</div></div>
+<div class="wrap">
+<div class="chips">{"".join(chips)}</div>
 {"".join(cards)}
-<footer>Probabilities are vig-removed and normalized within each market. Built from Pinnacle guest API league {LEAGUE}.</footer>
+<div class="legend"><b>Fair</b> = Pinnacle de-vigged probability, normalized within each market ·
+ <b>Kalshi</b> = live order-book mid · <b>Edge</b> = Fair &minus; Kalshi in points (green = Kalshi
+ underprices the fighter). Kalshi comparison covers the moneyline; click <b>Moneyline &#8599;</b> for
+ the market. Round of <i>victory</i> omitted (not priced by Pinnacle); Round of <i>finish</i> = which
+ round it ends, either fighter. Built from Pinnacle guest API league {LEAGUE}.</div>
 </div></body></html>"""
 
 
