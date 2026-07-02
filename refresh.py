@@ -113,7 +113,7 @@ def norm_fighter(s: str) -> str:
     return re.sub(r"[^a-z]", "", s)
 
 
-_NAME_NOISE = {"de", "da", "do", "dos", "del", "la", "le", "van", "von", "jr", "sr", "bra"}
+_NAME_NOISE = {"de", "da", "do", "dos", "del", "la", "le", "van", "von", "jr", "sr", "bra", "ii", "iii", "iv"}
 
 
 def fighter_tokens(name: str):
