@@ -1,8 +1,7 @@
 UFC feed eval — discovering fights…
 
-Event date token: 26JUL25   (12 fights)
+Event date token: 26JUL25   (11 fights)
   Muhammad Said  vs  Dustin Jacoby   ✓ Bolt mapped x1
-  Abdul Hussein  vs  Cody Gibson   ✓ Bolt mapped x1
   Bogdan Guskov  vs  Magomed Ankalaev   ✓ Bolt mapped x1
   Ramazonbek Temirov  vs  Steve Erceg   ✓ Bolt mapped x1
   Magomed Zaynukov  vs  Damian Rzepecki   ✓ Bolt mapped x1
@@ -11,7 +10,7 @@ Event date token: 26JUL25   (12 fights)
   Valter Walker  vs  Thomas Petersen   ✓ Bolt mapped x1
   Abubakar Vagaev  vs  Saygid Izagakhmaev   ✓ Bolt mapped x2
   Magomed Tuchalov  vs  Brendson Ribeiro   ✓ Bolt mapped x1
-  Mike Davis  vs  Nurullo Aliev   ✓ Bolt mapped x1
+  Mike Davis  vs  Nurullo Aliev   ✓ Bolt mapped x2
   Santiago Ponzinibbio  vs  Sam Patterson   ✓ Bolt mapped x1
 
 ➡  Open  http://localhost:8899
