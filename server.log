@@ -16,3 +16,8 @@ UFC dashboard -> http://127.0.0.1:5056
 127.0.0.1 - - [01/Aug/2026 08:50:21] "POST /multibook/fight/1 HTTP/1.1" 200 -
 127.0.0.1 - - [01/Aug/2026 08:52:47] "POST /multibook/fairs HTTP/1.1" 200 -
 127.0.0.1 - - [01/Aug/2026 08:52:47] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 09:00:03] "POST /multibook/fight/1 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 09:03:02] "POST /multibook/fight/1 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 09:12:34] "POST /multibook/fight/2 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 09:19:05] "POST /multibook/fairs HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 09:19:05] "GET /multibook HTTP/1.1" 200 -
