@@ -4,3 +4,15 @@ UFC dashboard -> http://127.0.0.1:5056
 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on http://127.0.0.1:5056
 [33mPress CTRL+C to quit[0m
+127.0.0.1 - - [01/Aug/2026 01:17:04] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:17:04] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:17:38] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:20:47] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:20:48] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:26:47] "POST /multibook/fairs HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:26:47] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:30:50] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:33:16] "POST /multibook/fairs HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 01:33:16] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 07:27:08] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 07:27:09] "GET /multibook HTTP/1.1" 200 -
