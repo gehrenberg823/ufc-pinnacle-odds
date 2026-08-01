@@ -4,8 +4,15 @@ UFC dashboard -> http://127.0.0.1:5056
 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on http://127.0.0.1:5056
 [33mPress CTRL+C to quit[0m
-127.0.0.1 - - [01/Aug/2026 08:18:26] "POST /multibook/build HTTP/1.1" 200 -
-127.0.0.1 - - [01/Aug/2026 08:18:26] "GET /multibook HTTP/1.1" 200 -
-127.0.0.1 - - [01/Aug/2026 08:19:46] "GET /multibook HTTP/1.1" 200 -
-127.0.0.1 - - [01/Aug/2026 08:25:45] "POST /multibook/fairs HTTP/1.1" 200 -
-127.0.0.1 - - [01/Aug/2026 08:25:45] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:39:51] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:39:51] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:40:10] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:41:19] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:41:20] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:42:37] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:42:38] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:46:49] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:47:20] "POST /multibook/fight/1 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:50:21] "POST /multibook/fight/1 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:52:47] "POST /multibook/fairs HTTP/1.1" 200 -
+127.0.0.1 - - [01/Aug/2026 08:52:47] "GET /multibook HTTP/1.1" 200 -
