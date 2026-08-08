@@ -38,3 +38,10 @@ UFC dashboard -> http://127.0.0.1:5056
 127.0.0.1 - - [04/Aug/2026 22:11:23] "GET /multibook HTTP/1.1" 200 -
 127.0.0.1 - - [04/Aug/2026 22:16:54] "POST /multibook/fairs HTTP/1.1" 200 -
 127.0.0.1 - - [04/Aug/2026 22:16:54] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [08/Aug/2026 07:44:46] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [08/Aug/2026 07:44:46] "[33mGET /apple-touch-icon-precomposed.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [08/Aug/2026 07:44:46] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [08/Aug/2026 07:44:46] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [08/Aug/2026 07:44:49] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [08/Aug/2026 07:45:52] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [08/Aug/2026 07:45:52] "GET /multibook HTTP/1.1" 200 -
