@@ -94,16 +94,21 @@ _MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT",
 
 
 def _kget(path, tries=6):
-    """GET Kalshi JSON with backoff on rate-limit (429) — bursts get throttled."""
+    """GET Kalshi JSON with backoff on rate-limit (429) and 5xx — bursts get
+    throttled. Hard 4xx and exhausted retries both return {}; callers that
+    must tell failure apart from a legit empty answer check for the expected
+    key (a real 'no markets' response is 200 with markets:[])."""
     delay = 0.4
     for _ in range(tries):
         try:
             r = requests.get(KALSHI + path, headers={"User-Agent": "Mozilla/5.0"}, timeout=25)
-            if r.status_code == 429:
-                time.sleep(delay); delay *= 2; continue
-            return r.json()
+            if r.status_code == 200:
+                return r.json()
+            if r.status_code != 429 and r.status_code < 500:
+                return {}
         except Exception:
-            time.sleep(delay); delay *= 2
+            pass
+        time.sleep(delay); delay *= 2
     return {}
 
 
