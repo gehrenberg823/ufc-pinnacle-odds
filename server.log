@@ -48,3 +48,12 @@ UFC dashboard -> http://127.0.0.1:5056
 127.0.0.1 - - [08/Aug/2026 07:57:20] "GET / HTTP/1.1" 200 -
 127.0.0.1 - - [08/Aug/2026 08:01:14] "GET /multibook HTTP/1.1" 200 -
 127.0.0.1 - - [08/Aug/2026 08:07:29] "GET /multibook HTTP/1.1" 200 -
+UFC dashboard -> http://127.0.0.1:5056
+ * Serving Flask app 'server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5056
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [08/Aug/2026 08:47:45] "POST /multibook/build HTTP/1.1" 200 -
+127.0.0.1 - - [08/Aug/2026 08:47:45] "GET /multibook HTTP/1.1" 200 -
+127.0.0.1 - - [08/Aug/2026 08:50:30] "GET /multibook HTTP/1.1" 200 -
