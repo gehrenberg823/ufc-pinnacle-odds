@@ -117,3 +117,4 @@ UFC dashboard -> http://127.0.0.1:5056
 127.0.0.1 - - [05/Sep/2026 17:00:39] "[33mGET /apple-touch-icon-precomposed.png HTTP/1.1[0m" 404 -
 127.0.0.1 - - [05/Sep/2026 17:00:39] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -
 127.0.0.1 - - [05/Sep/2026 17:00:39] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [10/Sep/2026 16:39:39] "GET / HTTP/1.1" 200 -
